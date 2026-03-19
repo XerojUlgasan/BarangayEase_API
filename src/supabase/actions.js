@@ -1,5 +1,6 @@
 const { getDataByUid, buildFullName, toTitle } = require("./utils");
 const { sendMessage } = require("../telerivet/sms_controller");
+const { household_supabase, supabase } = require("./client");
 
 const statusGuidance = {
   pending: "Please wait for the next update.",
@@ -160,6 +161,133 @@ const complaint_actions = async (payload) => {
   }
 };
 
-const announcement_actions = (payload) => {};
+const announcement_actions = async (payload) => {
+  try {
+    const announcement = payload?.new;
+    if (!announcement) return;
+
+    if (
+      announcement.category !== "event" ||
+      announcement.audience !== "residents" ||
+      announcement.send_sms === false
+    ) {
+      return;
+    }
+
+    console.log("Starting resident query!");
+
+    let query = household_supabase
+      .from("residents_summary")
+      .select("resident_fullname, contact_number");
+
+    if (announcement.purok && announcement.purok.length > 0) {
+      query = query.in("purok_name", announcement.purok);
+    }
+
+    if (announcement.sex) {
+      query = query.eq("sex", announcement.sex);
+    }
+
+    if (announcement.civil_status && announcement.civil_status.length > 0) {
+      query = query.in("civil_status", announcement.civil_status);
+    }
+
+    if (announcement.religion && announcement.religion.length > 0) {
+      query = query.in("religion", announcement.religion);
+    }
+
+    if (announcement.occupation) {
+      if (announcement.occupation === "Unemployed") {
+        query = query.or(
+          `occupation.eq.${announcement.occupation},occupation.is.null`,
+        );
+      } else if (announcement.occupation === "Retired") {
+        query = query.eq("occupation", announcement.occupation);
+      } else if (announcement.occupation === "Employed") {
+        query = query.not("occupation", "in", ["Retired", "Unemployed"]);
+      }
+    }
+
+    if (announcement.voter_status && announcement.voter_status.length > 0) {
+      if (announcement.voter_status == "not-registered") {
+        query = query.eq("voter_status", false);
+      } else {
+        query = query.eq("voter_status", true);
+      }
+    }
+
+    if (announcement.age_group && announcement.age_group.length > 0) {
+      query = query.in("age_group", announcement.age_group);
+    }
+
+    if (announcement.minimum_year_of_stay != null) {
+      const min = announcement.minimum_year_of_stay || 0;
+      query = query.gte("years_of_stay", min);
+    }
+
+    if (announcement.maximum_year_of_stay != null) {
+      const max = announcement.maximum_year_of_stay || 0;
+      query = query.lte("years_of_stay", max);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.log("announcement_actions query error:", error);
+      return;
+    }
+
+    const recipientMap = new Map();
+
+    for (const resident of data || []) {
+      const contactNumber = String(resident?.contact_number || "").trim();
+      if (!contactNumber) continue;
+      if (!recipientMap.has(contactNumber)) {
+        recipientMap.set(contactNumber, {
+          contactNumber,
+          fullName: resident?.resident_fullname || "Resident",
+        });
+      }
+    }
+
+    const recipients = Array.from(recipientMap.values());
+
+    if (recipients.length === 0) {
+      console.log("announcement_actions: no valid recipients found");
+      return;
+    }
+
+    const eventStartLine = announcement.event_start
+      ? `Start: ${new Date(announcement.event_start).toLocaleString("en-PH")}`
+      : null;
+    const eventEndLine = announcement.event_end
+      ? `End: ${new Date(announcement.event_end).toLocaleString("en-PH")}`
+      : null;
+
+    for (const recipient of recipients) {
+      const message = [
+        `Hi ${recipient.fullName},`,
+        "Barangay Announcement",
+        "You are qualified to join this event.",
+        `Title: ${announcement.title || "N/A"}`,
+        `Content: ${announcement.content || "N/A"}`,
+        "For more information about the event, please click the link below.",
+        "URL HERE",
+        eventStartLine,
+        eventEndLine,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      sendMessage(recipient.contactNumber, message);
+    }
+
+    console.log(
+      `announcement_actions: sent to ${recipients.length} recipient(s)`,
+    );
+  } catch (error) {
+    console.log("announcement_actions error:", error);
+  }
+};
 
 module.exports = { request_actions, complaint_actions, announcement_actions };

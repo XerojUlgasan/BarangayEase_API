@@ -1,12 +1,12 @@
 const tr_project = require("./client");
 
-// const from = "09945359587";
+const from = "639945359587";
 
-const sendMessages = (arr_nums) => {
+const sendMessages = (arr_nums, message) => {
   for (const num in arr_nums) {
     tr_project.sendMessage(
       {
-        content: "Testing testing",
+        content: message,
         from_number: from,
         to_number: arr_nums[num],
       },
@@ -22,7 +22,7 @@ const sendMessage = (num, content = "Testing testing maramihan") => {
   tr_project.sendMessage(
     {
       content,
-      // from_number: from,
+      from_number: from,
       to_number: num,
     },
     (err, message) => {

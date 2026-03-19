@@ -85,14 +85,14 @@ const listenToAnnouncements = () => {
         announcement_actions(payload);
       },
     )
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "announcement_tbl" },
-      (payload) => {
-        console.log("[announcement_tbl][UPDATE]", payload);
-        announcement_actions(payload);
-      },
-    )
+    // .on(
+    //   "postgres_changes",
+    //   { event: "UPDATE", schema: "public", table: "announcement_tbl" },
+    //   (payload) => {
+    //     console.log("[announcement_tbl][UPDATE]", payload);
+    //     announcement_actions(payload);
+    //   },
+    // )
     .subscribe((status) => {
       console.log("announcement_tbl listener status:", status);
     });
