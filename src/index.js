@@ -1,10 +1,14 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const { startListeners } = require("./supabase/listener");
 const { resident_route } = require("./routes/resident_route");
 const { supabase } = require("./supabase/client");
 
 const app = express();
+
+app.use(cors());
+
 app.use(express.json());
 
 app.use("/resident", resident_route);
