@@ -1,10 +1,25 @@
 require("dotenv").config();
 const express = require("express");
 const { startListeners } = require("./supabase/listener");
+const { resident_route } = require("./routes/resident_route");
+const { supabase } = require("./supabase/client");
 
 const app = express();
+app.use(express.json());
+
+app.use("/resident", resident_route);
 
 app.listen(process.env.PORT, async () => {
   console.log("App started at http://localhost:" + process.env.PORT);
   startListeners();
+  // tokenGetter();
 });
+
+const tokenGetter = async () => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: "Xeandreaulgasan1@gmail.com", // Resident
+    password: "password123",
+  });
+
+  console.log(data.session.access_token);
+};
