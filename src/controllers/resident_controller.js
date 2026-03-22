@@ -1,5 +1,12 @@
-const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemma-3-27b-it",
+  "gemma-3-12b-it",
+  "gemma-3-4b-it",
+  "gemma-3-2b-it",
+  "gemma-3-1b-it",
+];
 
 /**
  * BarangayEase AI Assistant Instructions (Resident-Facing)
@@ -93,6 +100,19 @@ const extractReplyText = (payload) => {
   );
 };
 
+const isModelUnavailable = (status, providerMessage = "") => {
+  const text = String(providerMessage).toLowerCase();
+
+  // Retry next model only when the provider signals model availability issues.
+  return (
+    status === 404 ||
+    status === 503 ||
+    /model|not\s*found|unavailable|not\s*available|does\s*not\s*exist|not\s*supported/.test(
+      text,
+    )
+  );
+};
+
 const chatbot_controller = async (req, res) => {
   try {
     const apiKey = process.env.GOOGLE_API_AISTUDIO_KEY;
@@ -125,34 +145,49 @@ const chatbot_controller = async (req, res) => {
       },
     ];
 
-    const response = await fetch(
-      `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    let lastErrorStatus = 500;
+    let lastErrorMessage = "Google API request failed.";
+
+    for (const model of GEMINI_MODELS) {
+      const response = await fetch(
+        `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ contents }),
         },
-        body: JSON.stringify({ contents }),
-      },
-    );
+      );
 
-    const payload = await response.json();
+      const payload = await response.json();
 
-    if (!response.ok) {
+      if (response.ok) {
+        const reply = extractReplyText(payload);
+
+        return res.status(200).json({
+          success: true,
+          reply,
+        });
+      }
+
       const providerMessage =
         payload?.error?.message || "Google API request failed.";
 
-      return res.status(response.status).json({
-        success: false,
-        error: providerMessage,
-      });
+      lastErrorStatus = response.status;
+      lastErrorMessage = providerMessage;
+
+      if (!isModelUnavailable(response.status, providerMessage)) {
+        return res.status(response.status).json({
+          success: false,
+          error: providerMessage,
+        });
+      }
     }
 
-    const reply = extractReplyText(payload);
-
-    return res.status(200).json({
-      success: true,
-      reply,
+    return res.status(lastErrorStatus).json({
+      success: false,
+      error: lastErrorMessage,
     });
   } catch (error) {
     return res.status(500).json({
