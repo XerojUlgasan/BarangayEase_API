@@ -176,9 +176,9 @@ const announcement_actions = async (payload) => {
 
     console.log("Starting resident query!");
 
-    let query = household_supabase
-      .from("residents_summary")
-      .select("resident_fullname, contact_number");
+    let query = supabase
+      .from("vw_residents_summary")
+      .select("resident_fullname, contact_number, email");
 
     if (announcement.purok && announcement.purok.length > 0) {
       query = query.in("purok_name", announcement.purok);
@@ -216,8 +216,9 @@ const announcement_actions = async (payload) => {
       }
     }
 
-    if (announcement.age_group && announcement.age_group.length > 0) {
-      query = query.in("age_group", announcement.age_group);
+    if (announcement.min_age && announcement.max_age) {
+      query = query.gte("age", announcement.min_age);
+      query = query.lte("age", announcement.max_age);
     }
 
     if (announcement.minimum_year_of_stay != null) {

@@ -1,8 +1,6 @@
 const express = require("express");
 const { chatbot_controller } = require("../controllers/resident_controller");
-const {
-  supabase_resident_auth,
-} = require("../middlewares/supabase_resident_auth");
+const { supabase_resident_auth } = require("../middlewares/auth_checker");
 
 const resident_route = express.Router();
 
