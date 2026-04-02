@@ -24,7 +24,7 @@ app.listen(process.env.PORT, async () => {
   // startListeners(); // FOR SMS
   autoAssignListeners();
   autoUpdateOfficialMetadata();
-  // tokenGetter();
+  // tokenGetter(); 
 });
 
 const tokenGetter = async () => {
