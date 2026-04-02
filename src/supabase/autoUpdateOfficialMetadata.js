@@ -15,7 +15,7 @@ const listenToBarangayOfficials = () => {
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "barangay_officials" },
       async (payload) => {
-        console.log(payload);
+        // console.log(payload);
         const newRow = payload?.new || {};
         const oldRow = payload?.old || {};
 
