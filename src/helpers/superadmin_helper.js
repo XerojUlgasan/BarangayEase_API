@@ -35,8 +35,11 @@ const sendUserInvitation = async (
     phone_confirm: true,
     user_metadata: {
       fullname: fullname,
+    },
+    app_metadata: {
       role: "official",
       position: position,
+      id: official_code,
     },
   });
 
