@@ -164,10 +164,12 @@ resident_route.post("/activateAccount", async (req, res) => {
   }
   //#endregion
 
+  //#region CREATING USER
   const { data: signupData, error: signupError } =
     await supabase.auth.admin.createUser({
       email: userData.email ? userData.email : email,
       password: userData.resident_no,
+      email_confirm: true,
       user_metadata: {
         fullname: `${userData.first_name} ${userData.last_name}`,
       },
@@ -185,6 +187,7 @@ resident_route.post("/activateAccount", async (req, res) => {
       //   debug: signupError,
     });
   }
+  //#endregion
 
   //#region Update email to barangay link if no email is retrieved
   if (!userData.email && email) {
@@ -201,6 +204,30 @@ resident_route.post("/activateAccount", async (req, res) => {
         message: "Failed to update email from barangaylink.",
       });
     }
+  }
+  //#endregion
+
+  //#region record registered resident
+  const auth_uid = signupData.user.id;
+  const resident_id = userData.id;
+
+  const is_activated = true;
+  const resident_email = signupData.user.email;
+
+  const { data: recordRegisteredData, error: recordRegisteredError } =
+    await supabase.from("registered_residents").insert({
+      id: resident_id,
+      auth_uid: auth_uid,
+      is_activated: is_activated,
+      email: resident_email,
+    });
+
+  if (recordRegisteredError) {
+    console.log(recordRegisteredError);
+    res.status(400).json({
+      result: false,
+      message: recordRegisteredError.message,
+    });
   }
   //#endregion
 
