@@ -52,6 +52,7 @@ const sendUserInvitation = async (
       .from("barangay_officials")
       .update({
         uid: data.user.id,
+        email: email,
       })
       .eq("official_code", official_code)
       .is("uid", null);

@@ -9,9 +9,9 @@ const superadmin_route = express.Router();
 superadmin_route.use(supabase_superadmin_auth);
 
 superadmin_route.post("/activateOfficial", async (req, res) => {
-  const { official_code } = req.body;
+  const { official_code, email } = req.body;
 
-  if (official_code == null)
+  if (official_code == null && !email)
     return res.status(400).json({
       success: false,
       message: "Official code is not provided.",
@@ -19,7 +19,7 @@ superadmin_route.post("/activateOfficial", async (req, res) => {
 
   const { data, error } = await supabase
     .from("barangay_officials")
-    .select("email, contact_number, position, first_name, last_name, uid")
+    .select("contact_number, position, first_name, last_name, uid")
     .eq("official_code", official_code)
     .limit(1)
     .maybeSingle();
@@ -37,7 +37,7 @@ superadmin_route.post("/activateOfficial", async (req, res) => {
 
   if (data) {
     const isCreated = await sendUserInvitation(
-      data.email,
+      email,
       data.contact_number,
       data.position,
       `${data.first_name} ${data.last_name}`,
