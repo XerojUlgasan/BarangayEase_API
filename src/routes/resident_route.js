@@ -5,7 +5,7 @@ const { supabase } = require("../supabase/client");
 
 const resident_route = express.Router();
 
-resident_route.get("/checkIdendity", async (req, res) => {
+resident_route.post("/checkIdentity", async (req, res) => {
   const {
     house_id = null,
     fname = null,
