@@ -20,6 +20,7 @@ const formatPhoneNumber = (phoneNumber) => {
   return "+63" + cleaned;
 };
 
+//Barangay official
 const sendUserInvitation = async (
   email,
   contact_number,
