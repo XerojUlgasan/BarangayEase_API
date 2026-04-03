@@ -37,7 +37,7 @@ const request_actions = async (payload) => {
       );
       return;
     }
-
+    console.log("Contact Numner : " + residentData.contact_number);
     const fullName = buildFullName(residentData);
     const subject =
       payload?.new?.subject || payload?.old?.subject || "your request";

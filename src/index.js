@@ -21,19 +21,18 @@ app.use("/superadmin", superadmin_route);
 
 app.listen(process.env.PORT, async () => {
   console.log("App started at http://localhost:" + process.env.PORT);
-  // startListeners(); // FOR SMS
+  startListeners(); // FOR SMS
   autoAssignListeners();
   autoUpdateOfficialMetadata();
-  // tokenGetter(); 
+  // tokenGetter();
 });
 
 const tokenGetter = async () => {
   const { data, error } = await supabase.auth.signInWithPassword({
-    // email: "xeroj1342@gmail.com", // Superadmin
-    // email: "Xeandreaulgasan1@gmail.com", // Resident
-    // password: "password123",
-    email: "pondpalqcu@gmail.com",
-    password: "RES-2026-0000001",
+    email: "xeroj1342@gmail.com", // Superadmin
+    password: "password123",
+    // email: "pondpalqcu@gmail.com", // Resident
+    // password: "RES-2026-0000001",
   });
   console.log(data);
   console.log(data.session.access_token);
