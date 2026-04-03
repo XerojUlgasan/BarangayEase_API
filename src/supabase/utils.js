@@ -24,8 +24,8 @@ const residentUidToId = async (uid) => {
 const getResidentData = async (id) => {
   if (!id) return null;
 
-  const { data: byIdData, error: byIdError } = await household_supabase
-    .from("residents")
+  const { data: byIdData, error: byIdError } = await supabase
+    .from("residents_tbl")
     .select("contact_number, first_name, last_name, middle_name")
     .eq("id", id)
     .limit(1)

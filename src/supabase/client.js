@@ -5,8 +5,6 @@ const { createClient } = require("@supabase/supabase-js");
 const supabase = createClient(
   "https://qcnljiogxnmfugcaqxge.supabase.co",
   process.env.SUPABASE_SERVICE_API,
-  // "https://qcnljiogxnmfugcaqxge.supabase.co",
-  // "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjbmxqaW9neG5tZnVnY2FxeGdlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDQ2MzU1MCwiZXhwIjoyMDg2MDM5NTUwfQ.mMmAs5OW8t09GhgkiL8VlMfOQt2ze8yW6VQHtUqRFJ8",
 );
 
 const household_supabase = createClient(
