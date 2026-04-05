@@ -29,10 +29,10 @@ app.listen(process.env.PORT, async () => {
 
 const tokenGetter = async () => {
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: "xeroj1342@gmail.com", // Superadmin
-    password: "password123",
-    // email: "pondpalqcu@gmail.com", // Resident
-    // password: "RES-2026-0000001",
+    // email: "xeroj1342@gmail.com", // Superadmin
+    // password: "password123",
+    email: "pondpalqcu@gmail.com", // Resident
+    password: "RES-2026-0000001",
   });
   console.log(data);
   console.log(data.session.access_token);
