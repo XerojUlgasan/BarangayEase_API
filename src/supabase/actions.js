@@ -10,6 +10,18 @@ const statusGuidance = {
   cancelled: "This request has been cancelled.",
 };
 
+const toArray = (value) => {
+  if (Array.isArray(value)) return value.filter((item) => item != null);
+  if (value == null) return [];
+  return [value];
+};
+
+const toLowerArray = (value) => {
+  return toArray(value)
+    .map((item) => String(item).trim().toLowerCase())
+    .filter(Boolean);
+};
+
 const request_actions = async (payload) => {
   console.log("STARTING REQUEST ACTIONS");
   try {
@@ -168,8 +180,8 @@ const announcement_actions = async (payload) => {
 
     if (
       announcement.category !== "event" ||
-      announcement.audience !== "residents" ||
-      announcement.send_sms === false
+      String(announcement.audience || "").toLowerCase() !== "residents" ||
+      announcement.send_sms !== true
     ) {
       return;
     }
@@ -177,7 +189,7 @@ const announcement_actions = async (payload) => {
     console.log("Starting resident query!");
 
     let query = supabase
-      .from("vw_residents_summary")
+      .from("residents_summary")
       .select("resident_fullname, contact_number, email");
 
     if (announcement.purok && announcement.purok.length > 0) {
@@ -188,47 +200,51 @@ const announcement_actions = async (payload) => {
       query = query.eq("sex", announcement.sex);
     }
 
-    if (announcement.civil_status && announcement.civil_status.length > 0) {
-      query = query.in("civil_status", announcement.civil_status);
+    const civilStatusFilters = toArray(announcement.civil_status);
+    if (civilStatusFilters.length > 0) {
+      query = query.in("civil_status", civilStatusFilters);
     }
 
-    if (announcement.religion && announcement.religion.length > 0) {
-      query = query.in("religion", announcement.religion);
+    const religionFilters = toArray(announcement.religion);
+    if (religionFilters.length > 0) {
+      query = query.in("religion", religionFilters);
     }
 
-    if (announcement.occupation) {
-      if (announcement.occupation === "Unemployed") {
-        query = query.or(
-          `occupation.eq.${announcement.occupation},occupation.is.null`,
-        );
-      } else if (announcement.occupation === "Retired") {
-        query = query.eq("occupation", announcement.occupation);
-      } else if (announcement.occupation === "Employed") {
-        query = query.not("occupation", "in", ["Retired", "Unemployed"]);
-      }
+    const occupationFilters = toArray(announcement.occupation);
+    if (occupationFilters.length > 0) {
+      query = query.in("occupation", occupationFilters);
     }
 
-    if (announcement.voter_status && announcement.voter_status.length > 0) {
-      if (announcement.voter_status == "not-registered") {
-        query = query.eq("voter_status", false);
-      } else {
+    const voterStatusFilters = toLowerArray(announcement.voter_status);
+    if (voterStatusFilters.length > 0) {
+      const hasRegistered = voterStatusFilters.includes("registered");
+      const hasNotRegistered =
+        voterStatusFilters.includes("not-registered") ||
+        voterStatusFilters.includes("not_registered") ||
+        voterStatusFilters.includes("not registered");
+
+      if (hasRegistered && !hasNotRegistered) {
         query = query.eq("voter_status", true);
+      } else if (!hasRegistered && hasNotRegistered) {
+        query = query.eq("voter_status", false);
       }
     }
 
-    if (announcement.min_age && announcement.max_age) {
+    if (announcement.min_age != null) {
       query = query.gte("age", announcement.min_age);
+    }
+
+    if (announcement.max_age != null) {
       query = query.lte("age", announcement.max_age);
     }
 
-    if (announcement.minimum_year_of_stay != null) {
-      const min = announcement.minimum_year_of_stay || 0;
-      query = query.gte("years_of_stay", min);
-    }
-
-    if (announcement.maximum_year_of_stay != null) {
-      const max = announcement.maximum_year_of_stay || 0;
-      query = query.lte("years_of_stay", max);
+    if (
+      announcement.minimum_year_of_stay != null ||
+      announcement.maximum_year_of_stay != null
+    ) {
+      console.log(
+        "announcement_actions: year-of-stay filter was skipped because residents_summary has no years_of_stay column",
+      );
     }
 
     const { data, error } = await query;

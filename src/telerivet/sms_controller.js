@@ -28,7 +28,7 @@ const sendMessage = (num, content = "Testing testing maramihan") => {
     },
     (err, message) => {
       if (err) console.log(err);
-      else console.log(message);
+      // else console.log(message);
     },
   );
 };
