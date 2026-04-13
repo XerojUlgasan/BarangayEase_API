@@ -159,11 +159,16 @@ const complaint_actions = async (payload) => {
     const statusLine = statusChanged
       ? `Complaint status updated to: ${statusLabel}`
       : `Complaint status: ${statusLabel}`;
+    const mediationLine =
+      String(newCategory || oldCategory || "").toLowerCase() === "for mediation"
+        ? "You may accept the mediation in your BarangayEase account for the next steps."
+        : null;
 
     const messageParts = [
       `Hi ${fullName}, update on your complaint (#${complaintId}):`,
       categoryLine,
       statusLine,
+      mediationLine,
       updatedLine,
     ].filter(Boolean);
 
