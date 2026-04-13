@@ -10,6 +10,20 @@ const statusGuidance = {
   cancelled: "This request has been cancelled.",
 };
 
+const complaintCategoryLabels = {
+  blotter: "Blotter",
+  "for mediation": "For Mediation",
+  "community concern": "Community Concern",
+};
+
+const complaintStatusLabels = {
+  "for review": "For Review",
+  rejected: "Rejected",
+  resolved: "Resolved",
+  recorded: "Recorded",
+  pending: "Pending",
+};
+
 const toArray = (value) => {
   if (Array.isArray(value)) return value.filter((item) => item != null);
   if (value == null) return [];
@@ -94,17 +108,19 @@ const request_actions = async (payload) => {
 
 const complaint_actions = async (payload) => {
   try {
+    const oldCategory = payload?.old?.category || null;
+    const newCategory = payload?.new?.category || null;
     const oldStatus = payload?.old?.status || null;
     const newStatus = payload?.new?.status || null;
-    const oldRemarks = payload?.old?.remarks || null;
-    const newRemarks = payload?.new?.remarks || null;
 
+    const categoryChanged = Boolean(
+      oldCategory && newCategory && oldCategory !== newCategory,
+    );
     const statusChanged = Boolean(
       oldStatus && newStatus && oldStatus !== newStatus,
     );
-    const remarksChanged = oldRemarks !== newRemarks;
 
-    if (!statusChanged && !remarksChanged) return;
+    if (!categoryChanged && !statusChanged) return;
 
     const complainantUid =
       payload?.new?.complainant_id || payload?.old?.complainant_id;
@@ -121,48 +137,34 @@ const complaint_actions = async (payload) => {
 
     const fullName = buildFullName(residentData);
     const complaintId = payload?.new?.id || payload?.old?.id || "N/A";
-    const complaintType =
-      payload?.new?.complaint_type ||
-      payload?.old?.complaint_type ||
-      "complaint";
-    const priorityLevel =
-      payload?.new?.priority_level || payload?.old?.priority_level || "pending";
-    const incidentLocation =
-      payload?.new?.incident_location ||
-      payload?.old?.incident_location ||
-      "N/A";
-    const incidentDate =
-      payload?.new?.incident_date || payload?.old?.incident_date || null;
     const updatedAt =
       payload?.new?.updated_at || payload?.new?.created_at || null;
 
-    const incidentDateLine = incidentDate
-      ? `Incident Date: ${new Date(incidentDate).toLocaleString("en-PH")}`
-      : null;
     const updatedLine = updatedAt
       ? `Updated: ${new Date(updatedAt).toLocaleString("en-PH")}`
       : null;
-    const remarks = newRemarks || "No remarks provided.";
-    const guidance =
-      statusGuidance[String(newStatus).toLowerCase()] ||
-      "For questions, please contact the barangay office.";
+
+    const categoryLabel =
+      complaintCategoryLabels[
+        String(newCategory || oldCategory || "").toLowerCase()
+      ] || toTitle(newCategory || oldCategory || "complaint");
+    const statusLabel =
+      complaintStatusLabels[
+        String(newStatus || oldStatus || "").toLowerCase()
+      ] || toTitle(newStatus || oldStatus || "for review");
+
+    const categoryLine = categoryChanged
+      ? `Complaint category updated to: ${categoryLabel}`
+      : `Complaint category: ${categoryLabel}`;
     const statusLine = statusChanged
-      ? `Status: ${toTitle(oldStatus)} -> ${toTitle(newStatus)}`
-      : `Status: ${toTitle(newStatus || oldStatus || "pending")}`;
-    const remarksLine = remarksChanged
-      ? `Remarks updated: ${remarks}`
-      : `Remarks: ${remarks}`;
+      ? `Complaint status updated to: ${statusLabel}`
+      : `Complaint status: ${statusLabel}`;
 
     const messageParts = [
-      `Hi ${fullName}, update on your barangay complaint (#${complaintId}):`,
-      `Type: ${toTitle(complaintType)}`,
-      `Priority: ${toTitle(priorityLevel)}`,
+      `Hi ${fullName}, update on your complaint (#${complaintId}):`,
+      categoryLine,
       statusLine,
-      incidentDateLine,
-      `Location: ${incidentLocation}`,
-      remarksLine,
       updatedLine,
-      guidance,
     ].filter(Boolean);
 
     const message = messageParts.join("\n");

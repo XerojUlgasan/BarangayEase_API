@@ -51,14 +51,6 @@ const listenToComplaints = () => {
     .channel("realtime:public:complaint_tbl")
     .on(
       "postgres_changes",
-      { event: "INSERT", schema: "public", table: "complaint_tbl" },
-      (payload) => {
-        console.log("[complaint_tbl][INSERT]", payload);
-        complaint_actions(payload);
-      },
-    )
-    .on(
-      "postgres_changes",
       { event: "UPDATE", schema: "public", table: "complaint_tbl" },
       (payload) => {
         console.log("[complaint_tbl][UPDATE]", payload);
