@@ -2,6 +2,7 @@ const {
   complaint_actions,
   announcement_actions,
   request_actions,
+  mediation_actions,
 } = require("./actions");
 const { supabase } = require("./client");
 require("dotenv").config();
@@ -9,11 +10,13 @@ require("dotenv").config();
 let requestsChannel = null;
 let complaintsChannel = null;
 let announcementsChannel = null;
+let mediationsChannel = null;
 
 const startListeners = () => {
   listenToRequests();
   listenToComplaints();
   listenToAnnouncements();
+  listenToMediations();
 };
 
 const listenToRequests = () => {
@@ -92,9 +95,38 @@ const listenToAnnouncements = () => {
   return announcementsChannel;
 };
 
+const listenToMediations = () => {
+  if (mediationsChannel) return mediationsChannel;
+
+  mediationsChannel = supabase
+    .channel("realtime:public:mediations_tbl")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "mediations_tbl" },
+      (payload) => {
+        console.log("[mediations_tbl][INSERT]", payload);
+        mediation_actions(payload, "INSERT");
+      },
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "mediations_tbl" },
+      (payload) => {
+        console.log("[mediations_tbl][UPDATE]", payload);
+        mediation_actions(payload, "UPDATE");
+      },
+    )
+    .subscribe((status) => {
+      console.log("mediations_tbl listener status:", status);
+    });
+
+  return mediationsChannel;
+};
+
 module.exports = {
   startListeners,
   listenToRequests,
   listenToComplaints,
   listenToAnnouncements,
+  listenToMediations,
 };

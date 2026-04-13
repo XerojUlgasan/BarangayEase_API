@@ -36,6 +36,16 @@ const toLowerArray = (value) => {
     .filter(Boolean);
 };
 
+const formatDateTimeLong = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("en-PH", {
+    dateStyle: "full",
+    timeStyle: "long",
+  });
+};
+
 const request_actions = async (payload) => {
   console.log("STARTING REQUEST ACTIONS");
   try {
@@ -152,13 +162,17 @@ const complaint_actions = async (payload) => {
       complaintStatusLabels[
         String(newStatus || oldStatus || "").toLowerCase()
       ] || toTitle(newStatus || oldStatus || "for review");
+    const normalizedStatus = String(newStatus || oldStatus || "").toLowerCase();
 
     const categoryLine = categoryChanged
       ? `Complaint category updated to: ${categoryLabel}`
       : `Complaint category: ${categoryLabel}`;
-    const statusLine = statusChanged
-      ? `Complaint status updated to: ${statusLabel}`
-      : `Complaint status: ${statusLabel}`;
+    const statusLine =
+      normalizedStatus === "rejected"
+        ? "Your complaint is marked as rejected."
+        : statusChanged
+          ? `Complaint status updated to: ${statusLabel}`
+          : `Complaint status: ${statusLabel}`;
     const mediationLine =
       String(newCategory || oldCategory || "").toLowerCase() === "for mediation"
         ? "You may accept the mediation in your BarangayEase account for the next steps."
@@ -177,6 +191,161 @@ const complaint_actions = async (payload) => {
     sendMessage(residentData.contact_number, message);
   } catch (error) {
     console.log("complaint_actions error:", error);
+  }
+};
+
+const mediation_actions = async (payload, eventType) => {
+  try {
+    const mediationRow = payload?.new || payload?.old;
+    const mediationStatus = String(mediationRow?.status || "").toLowerCase();
+    const complaintId = mediationRow?.complaint_id;
+
+    if (!complaintId) {
+      console.log("mediation_actions: missing complaint_id");
+      return;
+    }
+
+    if (eventType === "INSERT") {
+      if (mediationStatus !== "scheduled") return;
+    } else if (eventType === "UPDATE") {
+      if (
+        mediationStatus !== "rescheduled" &&
+        mediationStatus !== "unresolved" &&
+        mediationStatus !== "resolved" &&
+        mediationStatus !== "rejected"
+      ) {
+        return;
+      }
+    } else {
+      return;
+    }
+
+    const { data: complaint, error: complaintError } = await supabase
+      .from("complaint_tbl")
+      .select("id, complainant_id, respondent_id")
+      .eq("id", complaintId)
+      .limit(1)
+      .maybeSingle();
+
+    if (complaintError) {
+      console.log("mediation_actions complaint query error:", complaintError);
+      return;
+    }
+
+    if (!complaint) {
+      console.log(
+        "mediation_actions: complaint not found for id:",
+        complaintId,
+      );
+      return;
+    }
+
+    const complainantUid = complaint.complainant_id || null;
+    const respondentUids = Array.isArray(complaint.respondent_id)
+      ? complaint.respondent_id
+      : [];
+
+    const recipientUids = [complainantUid, ...respondentUids].filter(Boolean);
+
+    if (recipientUids.length === 0) {
+      console.log(
+        "mediation_actions: no complainant/respondent recipients for complaint id:",
+        complaintId,
+      );
+      return;
+    }
+
+    const uniqueUids = Array.from(new Set(recipientUids));
+
+    const { data: residents, error: residentsError } = await supabase
+      .from("residents_summary")
+      .select("auth_uid, resident_fullname, contact_number")
+      .in("auth_uid", uniqueUids);
+
+    if (residentsError) {
+      console.log("mediation_actions residents query error:", residentsError);
+      return;
+    }
+
+    const residentMap = new Map();
+    for (const resident of residents || []) {
+      residentMap.set(String(resident?.auth_uid || ""), resident);
+    }
+
+    const startLine = formatDateTimeLong(mediationRow?.session_start)
+      ? `Session Start: ${formatDateTimeLong(mediationRow?.session_start)}`
+      : null;
+    const endLine = formatDateTimeLong(mediationRow?.session_end)
+      ? `Session End: ${formatDateTimeLong(mediationRow?.session_end)}`
+      : null;
+
+    let statusTitle = null;
+    let detailLine = null;
+
+    if (eventType === "INSERT" && mediationStatus === "scheduled") {
+      statusTitle = "Mediation Scheduled";
+      detailLine = "A mediation session has been scheduled for this complaint.";
+    }
+
+    if (eventType === "UPDATE" && mediationStatus === "rescheduled") {
+      statusTitle = "Mediation Rescheduled";
+      detailLine =
+        "The mediation session schedule has been updated. Please review the new schedule below.";
+    }
+
+    if (eventType === "UPDATE" && mediationStatus === "unresolved") {
+      statusTitle = "Mediation Unresolved";
+      detailLine =
+        "The mediation session is currently unresolved. Please wait for further announcement.";
+    }
+
+    if (eventType === "UPDATE" && mediationStatus === "resolved") {
+      statusTitle = "Mediation Resolved";
+      detailLine =
+        "The mediation for this complaint has been marked as resolved.";
+    }
+
+    if (eventType === "UPDATE" && mediationStatus === "rejected") {
+      statusTitle = "Mediation Rejected";
+      detailLine =
+        "The mediation update has been marked as rejected. Please go to the barangay office for more details.";
+    }
+
+    if (!statusTitle || !detailLine) return;
+
+    for (const uid of recipientUids) {
+      const resident = residentMap.get(String(uid));
+      const contactNumber = String(resident?.contact_number || "").trim();
+
+      if (!contactNumber) {
+        console.log(
+          "mediation_actions: skipped recipient with missing contact_number:",
+          uid,
+        );
+        continue;
+      }
+
+      const fullName = resident?.resident_fullname || "Resident";
+
+      const messageParts = [
+        `Hi ${fullName},`,
+        `${statusTitle}`,
+        `Complaint ID: #${complaintId}`,
+        detailLine,
+      ];
+
+      if (
+        (eventType === "INSERT" && mediationStatus === "scheduled") ||
+        (eventType === "UPDATE" && mediationStatus === "rescheduled")
+      ) {
+        messageParts.push(startLine, endLine);
+      }
+
+      const message = messageParts.filter(Boolean).join("\n");
+      sendMessage(contactNumber, message);
+    }
+  } catch (error) {
+    console.log("mediation_actions error:", error);
   }
 };
 
@@ -314,4 +483,9 @@ const announcement_actions = async (payload) => {
   }
 };
 
-module.exports = { request_actions, complaint_actions, announcement_actions };
+module.exports = {
+  request_actions,
+  complaint_actions,
+  announcement_actions,
+  mediation_actions,
+};
