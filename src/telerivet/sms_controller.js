@@ -1,6 +1,6 @@
 const tr_project = require("./client");
 
-const from = "639945359587"; // ERNITS
+const from = "639945359587"; // ERNITS // DOUBLE CHECK
 // const from = "639945499723"; // XEROJ
 
 const sendMessages = (arr_nums, message) => {
