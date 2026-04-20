@@ -1,11 +1,19 @@
 const { supabase } = require("./client");
 
-const UNFINISHED_STATUSES = [
+const ACTIVE_REQUEST_STATUSES = [
   "pending",
   "in_progress",
   "for_compliance",
   "for_validation",
   "resident_complied",
+];
+
+const ACTIVE_COMPLAINT_STATUSES = [
+  "for review",
+  "rejected",
+  "resolved",
+  "recorded",
+  "pending",
 ];
 
 let requestsChannel = null;
@@ -98,7 +106,11 @@ const getPresentActiveOfficials = async () => {
     .filter(Boolean);
 };
 
-const pickLeastBusyUid = async (tableName, statusColumnName) => {
+const pickLeastBusyUid = async (
+  tableName,
+  statusColumnName,
+  activeStatuses,
+) => {
   const presentUids = await getPresentActiveOfficials();
   if (!presentUids.length) return null;
 
@@ -108,7 +120,7 @@ const pickLeastBusyUid = async (tableName, statusColumnName) => {
     .from(tableName)
     .select("assigned_official_id")
     .in("assigned_official_id", presentUids)
-    .in(statusColumnName, UNFINISHED_STATUSES);
+    .in(statusColumnName, activeStatuses);
 
   if (error) {
     console.log(`pickLeastBusyUid error (${tableName}):`, error);
@@ -135,7 +147,11 @@ const pickLeastBusyUid = async (tableName, statusColumnName) => {
 };
 
 const assignToComplaint = async (complaintId) => {
-  const selectedUid = await pickLeastBusyUid("complaint_tbl", "status");
+  const selectedUid = await pickLeastBusyUid(
+    "complaint_tbl",
+    "status",
+    ACTIVE_COMPLAINT_STATUSES,
+  );
 
   if (!selectedUid) {
     console.log(
@@ -161,7 +177,11 @@ const assignToComplaint = async (complaintId) => {
 };
 
 const assignToRequest = async (requestId) => {
-  const selectedUid = await pickLeastBusyUid("request_tbl", "request_status");
+  const selectedUid = await pickLeastBusyUid(
+    "request_tbl",
+    "request_status",
+    ACTIVE_REQUEST_STATUSES,
+  );
 
   if (!selectedUid) {
     console.log("No present ACTIVE official available for request assignment.");

@@ -13,6 +13,7 @@ let announcementsChannel = null;
 let mediationsChannel = null;
 
 const startListeners = () => {
+  console.log("\nLISTENING FOR SMSSS");
   listenToRequests();
   listenToComplaints();
   listenToAnnouncements();
