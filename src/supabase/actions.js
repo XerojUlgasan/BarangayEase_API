@@ -537,7 +537,7 @@ const settlement_actions = async (payload, eventType) => {
     }
 
     const settlementType = toTitle(settlementRow?.type || "N/A");
-    const settlementStatus = toTitle(settlementRow?.status || "N/A");
+    const settlementStatus = String(settlementRow?.status || "").toLowerCase();
     const complaintType = toTitle(complaint?.complaint_type || "N/A");
     const startLine = formatDateTimeLong(settlementRow?.session_start)
       ? `Session Start: ${formatDateTimeLong(settlementRow?.session_start)}`
@@ -559,19 +559,57 @@ const settlement_actions = async (payload, eventType) => {
       }
 
       const fullName = resident?.resident_fullname || "Resident";
+      let messageParts = [];
 
-      const messageParts = [
-        `Hi ${fullName},`,
-        eventType === "INSERT"
-          ? "Settlement Created"
-          : "Settlement Updated",
-        `Complaint ID: #${complaintId}`,
-        `Complaint Type: ${complaintType}`,
-        `Settlement Type: ${settlementType}`,
-        `Status: ${settlementStatus}`,
-        startLine,
-        endLine,
-      ];
+      if (settlementStatus === "scheduled") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `A ${settlementType} session has been scheduled for your complaint (#${complaintId}).`,
+          `Complaint Type: ${complaintType}`,
+          startLine,
+          endLine,
+          "Please make sure to attend the session. Check your BarangayEase account for more details.",
+        ];
+      } else if (settlementStatus === "rescheduled") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `Your ${settlementType} session for complaint #${complaintId} has been rescheduled.`,
+          `Complaint Type: ${complaintType}`,
+          `New Schedule:`,
+          startLine,
+          endLine,
+          "Please take note of the new schedule. Check your BarangayEase account for more details.",
+        ];
+      } else if (settlementStatus === "resolved") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `Good news! Your ${settlementType} session for complaint #${complaintId} has been resolved.`,
+          `Complaint Type: ${complaintType}`,
+          "Thank you for your cooperation. You may check your BarangayEase account for the resolution details.",
+        ];
+      } else if (settlementStatus === "unresolved") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `Your ${settlementType} session for complaint #${complaintId} is currently unresolved.`,
+          `Complaint Type: ${complaintType}`,
+          "Please wait for further updates from the barangay office. Check your BarangayEase account for more information.",
+        ];
+      } else if (settlementStatus === "rejected") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `Your ${settlementType} session for complaint #${complaintId} has been rejected.`,
+          `Complaint Type: ${complaintType}`,
+          "Please visit the barangay office for more details and next steps.",
+        ];
+      } else {
+        messageParts = [
+          `Hi ${fullName},`,
+          `There's an update on your ${settlementType} session for complaint #${complaintId}.`,
+          `Complaint Type: ${complaintType}`,
+          `Status: ${toTitle(settlementStatus)}`,
+          "Please check your BarangayEase account for more details.",
+        ];
+      }
 
       const message = messageParts.filter(Boolean).join("\n");
       sendMessage(contactNumber, message);
