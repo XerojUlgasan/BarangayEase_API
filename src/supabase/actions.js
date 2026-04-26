@@ -483,9 +483,108 @@ const announcement_actions = async (payload) => {
   }
 };
 
+const settlement_actions = async (payload, eventType) => {
+  try {
+    const settlementRow = payload?.new || payload?.old;
+    const partiesUids = Array.isArray(settlementRow?.parties_uid)
+      ? settlementRow.parties_uid
+      : [];
+    const complaintId = settlementRow?.complaint_id;
+
+    if (partiesUids.length === 0) {
+      console.log("settlement_actions: no parties_uid found");
+      return;
+    }
+
+    if (!complaintId) {
+      console.log("settlement_actions: missing complaint_id");
+      return;
+    }
+
+    const { data: complaint, error: complaintError } = await supabase
+      .from("complaint_tbl")
+      .select("id, complaint_type")
+      .eq("id", complaintId)
+      .limit(1)
+      .maybeSingle();
+
+    if (complaintError) {
+      console.log("settlement_actions complaint query error:", complaintError);
+      return;
+    }
+
+    if (!complaint) {
+      console.log(
+        "settlement_actions: complaint not found for id:",
+        complaintId,
+      );
+      return;
+    }
+
+    const { data: residents, error: residentsError } = await supabase
+      .from("residents_summary")
+      .select("auth_uid, resident_fullname, contact_number")
+      .in("auth_uid", partiesUids);
+
+    if (residentsError) {
+      console.log("settlement_actions residents query error:", residentsError);
+      return;
+    }
+
+    const residentMap = new Map();
+    for (const resident of residents || []) {
+      residentMap.set(String(resident?.auth_uid || ""), resident);
+    }
+
+    const settlementType = toTitle(settlementRow?.type || "N/A");
+    const settlementStatus = toTitle(settlementRow?.status || "N/A");
+    const complaintType = toTitle(complaint?.complaint_type || "N/A");
+    const startLine = formatDateTimeLong(settlementRow?.session_start)
+      ? `Session Start: ${formatDateTimeLong(settlementRow?.session_start)}`
+      : null;
+    const endLine = formatDateTimeLong(settlementRow?.session_end)
+      ? `Session End: ${formatDateTimeLong(settlementRow?.session_end)}`
+      : null;
+
+    for (const uid of partiesUids) {
+      const resident = residentMap.get(String(uid));
+      const contactNumber = String(resident?.contact_number || "").trim();
+
+      if (!contactNumber) {
+        console.log(
+          "settlement_actions: skipped party with missing contact_number:",
+          uid,
+        );
+        continue;
+      }
+
+      const fullName = resident?.resident_fullname || "Resident";
+
+      const messageParts = [
+        `Hi ${fullName},`,
+        eventType === "INSERT"
+          ? "Settlement Created"
+          : "Settlement Updated",
+        `Complaint ID: #${complaintId}`,
+        `Complaint Type: ${complaintType}`,
+        `Settlement Type: ${settlementType}`,
+        `Status: ${settlementStatus}`,
+        startLine,
+        endLine,
+      ];
+
+      const message = messageParts.filter(Boolean).join("\n");
+      sendMessage(contactNumber, message);
+    }
+  } catch (error) {
+    console.log("settlement_actions error:", error);
+  }
+};
+
 module.exports = {
   request_actions,
   complaint_actions,
   announcement_actions,
   mediation_actions,
+  settlement_actions,
 };
