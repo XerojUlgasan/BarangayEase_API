@@ -2,26 +2,12 @@ const { getDataByUid, buildFullName, toTitle } = require("./utils");
 const { sendMessage } = require("../telerivet/sms_controller");
 const { household_supabase, supabase } = require("./client");
 
-const statusGuidance = {
-  pending: "Please wait for the next update.",
-  approved: "You may coordinate with the barangay office for release steps.",
-  rejected: "Please check remarks and contact the barangay office if needed.",
-  completed: "Your request is completed and ready for release/claim.",
-  cancelled: "This request has been cancelled.",
-};
-
 const complaintCategoryLabels = {
-  blotter: "Blotter",
-  "for mediation": "For Mediation",
+  uncategorized: "Uncategorized",
   "community concern": "Community Concern",
-};
-
-const complaintStatusLabels = {
-  "for review": "For Review",
-  rejected: "Rejected",
-  resolved: "Resolved",
-  recorded: "Recorded",
-  pending: "Pending",
+  "barangay complaint": "Barangay Complaint",
+  "community dispute": "Community Dispute",
+  "personal complaint": "Personal Complaint",
 };
 
 const toArray = (value) => {
@@ -34,6 +20,25 @@ const toLowerArray = (value) => {
   return toArray(value)
     .map((item) => String(item).trim().toLowerCase())
     .filter(Boolean);
+};
+
+const normalizeComplaintCategory = (value) => {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  return normalized || "uncategorized";
+};
+
+const complaintCategoryKeySet = new Set([
+  "uncategorized",
+  "community concern",
+  "barangay complaint",
+  "community dispute",
+  "personal complaint",
+]);
+
+const isTrackedComplaintCategory = (value) => {
+  return complaintCategoryKeySet.has(normalizeComplaintCategory(value));
 };
 
 const formatDateTimeLong = (value) => {
@@ -118,19 +123,19 @@ const request_actions = async (payload) => {
 
 const complaint_actions = async (payload) => {
   try {
-    const oldCategory = payload?.old?.category || null;
-    const newCategory = payload?.new?.category || null;
-    const oldStatus = payload?.old?.status || null;
-    const newStatus = payload?.new?.status || null;
+    const oldCategory = normalizeComplaintCategory(payload?.old?.category);
+    const newCategory = normalizeComplaintCategory(payload?.new?.category);
 
-    const categoryChanged = Boolean(
-      oldCategory && newCategory && oldCategory !== newCategory,
-    );
-    const statusChanged = Boolean(
-      oldStatus && newStatus && oldStatus !== newStatus,
-    );
+    const categoryChanged = oldCategory !== newCategory;
 
-    if (!categoryChanged && !statusChanged) return;
+    if (!categoryChanged) return;
+
+    if (
+      !isTrackedComplaintCategory(oldCategory) &&
+      !isTrackedComplaintCategory(newCategory)
+    ) {
+      return;
+    }
 
     const complainantUid =
       payload?.new?.complainant_id || payload?.old?.complainant_id;
@@ -147,43 +152,19 @@ const complaint_actions = async (payload) => {
 
     const fullName = buildFullName(residentData);
     const complaintId = payload?.new?.id || payload?.old?.id || "N/A";
-    const updatedAt =
-      payload?.new?.updated_at || payload?.new?.created_at || null;
-
-    const updatedLine = updatedAt
-      ? `Updated: ${new Date(updatedAt).toLocaleString("en-PH")}`
-      : null;
-
     const categoryLabel =
-      complaintCategoryLabels[
-        String(newCategory || oldCategory || "").toLowerCase()
-      ] || toTitle(newCategory || oldCategory || "complaint");
-    const statusLabel =
-      complaintStatusLabels[
-        String(newStatus || oldStatus || "").toLowerCase()
-      ] || toTitle(newStatus || oldStatus || "for review");
-    const normalizedStatus = String(newStatus || oldStatus || "").toLowerCase();
-
-    const categoryLine = categoryChanged
-      ? `Complaint category updated to: ${categoryLabel}`
-      : `Complaint category: ${categoryLabel}`;
-    const statusLine =
-      normalizedStatus === "rejected"
-        ? "Your complaint is marked as rejected."
-        : statusChanged
-          ? `Complaint status updated to: ${statusLabel}`
-          : `Complaint status: ${statusLabel}`;
-    const mediationLine =
-      String(newCategory || oldCategory || "").toLowerCase() === "for mediation"
-        ? "You may accept the mediation in your BarangayEase account for the next steps."
-        : null;
+      complaintCategoryLabels[newCategory] ||
+      toTitle(newCategory || oldCategory || "complaint");
 
     const messageParts = [
-      `Hi ${fullName}, update on your complaint (#${complaintId}):`,
-      categoryLine,
-      statusLine,
-      mediationLine,
-      updatedLine,
+      `Hello ${fullName},`,
+      newCategory === "personal complaint"
+        ? `Regarding your complaint (#${complaintId}), it has been set as ${categoryLabel}.`
+        : `Regarding your complaint (#${complaintId}), it has been categorized as ${categoryLabel}.`,
+      newCategory === "personal complaint"
+        ? `Please file this complaint directly at the barangay hall as it needs further assistance and present your complaint ID number (#${complaintId}) when you visit.`
+        : "Please wait for further notice regarding the status.",
+      "For questions, please contact the barangay office.",
     ].filter(Boolean);
 
     const message = messageParts.join("\n");
