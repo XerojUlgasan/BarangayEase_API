@@ -358,9 +358,9 @@ const announcement_actions = async (payload) => {
     }
 
     const civilStatusFilters = toArray(announcement.civil_status);
-    if (civilStatusFilters.length > 0) {
-      query = query.in("civil_status", civilStatusFilters);
-    }
+    const normalizedCivilStatusFilters = toLowerArray(
+      announcement.civil_status,
+    );
 
     const religionFilters = toArray(announcement.religion);
     if (religionFilters.length > 0) {
@@ -422,8 +422,24 @@ const announcement_actions = async (payload) => {
       return;
     }
 
+    const hasCivilStatusFilters = civilStatusFilters.length > 0;
+    const includesSingleCivilStatus =
+      normalizedCivilStatusFilters.includes("single");
+
     // Apply occupation-based filtering for special types
-    let filteredData = data || [];
+    let filteredData = (data || []).filter((resident) => {
+      if (!hasCivilStatusFilters) return true;
+
+      const residentCivilStatus = String(resident?.civil_status || "")
+        .trim()
+        .toLowerCase();
+
+      if (!residentCivilStatus) {
+        return includesSingleCivilStatus;
+      }
+
+      return normalizedCivilStatusFilters.includes(residentCivilStatus);
+    });
 
     const hasUnemployed = normalizedOccupations.includes("unemployed");
     const hasEmployed = normalizedOccupations.includes("employed");

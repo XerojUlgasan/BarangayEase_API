@@ -24,9 +24,9 @@ const sendMessages = (arr_nums, message) => {
 };
 
 const sendMessage = (num, content = "Testing testing maramihan") => {
-  console.log(num);
-  console.log(content);
-  return;
+  // console.log(num);
+  // console.log(content);
+  // return;
 
   tr_project.sendMessage(
     {
