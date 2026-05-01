@@ -347,7 +347,7 @@ const announcement_actions = async (payload) => {
 
     let query = supabase
       .from("residents_summary")
-      .select("resident_fullname, contact_number, email");
+      .select("resident_fullname, contact_number, email, occupation, age");
 
     if (announcement.purok && announcement.purok.length > 0) {
       query = query.in("purok_name", announcement.purok);
@@ -367,8 +367,19 @@ const announcement_actions = async (payload) => {
       query = query.in("religion", religionFilters);
     }
 
+    // Skip occupation filter in query if special types present
+    // We'll handle it after fetching data
     const occupationFilters = toArray(announcement.occupation);
-    if (occupationFilters.length > 0) {
+    const normalizedOccupations = occupationFilters
+      .map((occ) => String(occ).toLowerCase().trim())
+      .filter(Boolean);
+
+    const hasSpecialOccupation =
+      normalizedOccupations.includes("unemployed") ||
+      normalizedOccupations.includes("employed") ||
+      normalizedOccupations.includes("retired");
+
+    if (occupationFilters.length > 0 && !hasSpecialOccupation) {
       query = query.in("occupation", occupationFilters);
     }
 
@@ -411,9 +422,46 @@ const announcement_actions = async (payload) => {
       return;
     }
 
+    // Apply occupation-based filtering for special types
+    let filteredData = data || [];
+
+    const hasUnemployed = normalizedOccupations.includes("unemployed");
+    const hasEmployed = normalizedOccupations.includes("employed");
+    const hasRetired = normalizedOccupations.includes("retired");
+
+    if (hasUnemployed || hasEmployed || hasRetired) {
+      filteredData = filteredData.filter((resident) => {
+        const occupationLower = String(
+          resident?.occupation || "",
+        ).toLowerCase();
+        const age = resident?.age || 0;
+        let matches = false;
+
+        if (hasUnemployed) {
+          // Unemployed: occupation IS NULL OR occupation = 'student'
+          matches =
+            matches || !resident?.occupation || occupationLower === "student";
+        }
+
+        if (hasEmployed) {
+          // Employed: occupation IS NOT NULL AND occupation != 'student' AND age < 65
+          matches =
+            matches ||
+            (resident?.occupation && occupationLower !== "student" && age < 65);
+        }
+
+        if (hasRetired) {
+          // Retired: occupation = 'retired' AND age <= 65
+          matches = matches || (occupationLower === "retired" && age <= 65);
+        }
+
+        return matches;
+      });
+    }
+
     const recipientMap = new Map();
 
-    for (const resident of data || []) {
+    for (const resident of filteredData || []) {
       const contactNumber = String(resident?.contact_number || "").trim();
       if (!contactNumber) continue;
       if (!recipientMap.has(contactNumber)) {
