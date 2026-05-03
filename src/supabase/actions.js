@@ -47,7 +47,8 @@ const formatDateTimeLong = (value) => {
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleString("en-PH", {
     dateStyle: "full",
-    timeStyle: "long",
+    timeStyle: "short",
+    timeZone: "Asia/Manila",
   });
 };
 
