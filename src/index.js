@@ -5,7 +5,6 @@ const { startListeners } = require("./supabase/listener");
 const { resident_route } = require("./routes/resident_route");
 const { supabase } = require("./supabase/client");
 const superadmin_route = require("./routes/superadmin_route");
-const { autoAssignListeners } = require("./supabase/autoAssign");
 const {
   autoUpdateOfficialMetadata,
 } = require("./supabase/autoUpdateOfficialMetadata");
@@ -22,7 +21,6 @@ app.use("/superadmin", superadmin_route);
 app.listen(process.env.PORT, async () => {
   console.log("App started at http://localhost:" + process.env.PORT);
   startListeners(); // FOR SMS
-  autoAssignListeners();
   autoUpdateOfficialMetadata();
   // tokenGetter();
 });

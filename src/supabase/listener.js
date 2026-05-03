@@ -3,6 +3,7 @@ const {
   announcement_actions,
   request_actions,
   mediation_actions,
+  settlement_actions,
 } = require("./actions");
 const { supabase } = require("./client");
 require("dotenv").config();
@@ -11,6 +12,7 @@ let requestsChannel = null;
 let complaintsChannel = null;
 let announcementsChannel = null;
 let mediationsChannel = null;
+let settlementsChannel = null;
 
 const startListeners = () => {
   console.log("\nLISTENING FOR SMSSS");
@@ -18,6 +20,7 @@ const startListeners = () => {
   listenToComplaints();
   listenToAnnouncements();
   listenToMediations();
+  listenToSettlements();
 };
 
 const listenToRequests = () => {
@@ -124,10 +127,39 @@ const listenToMediations = () => {
   return mediationsChannel;
 };
 
+const listenToSettlements = () => {
+  if (settlementsChannel) return settlementsChannel;
+
+  settlementsChannel = supabase
+    .channel("realtime:public:settlement_tbl")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "settlement_tbl" },
+      (payload) => {
+        console.log("[settlement_tbl][INSERT]", payload);
+        settlement_actions(payload, "INSERT");
+      },
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "settlement_tbl" },
+      (payload) => {
+        console.log("[settlement_tbl][UPDATE]", payload);
+        settlement_actions(payload, "UPDATE");
+      },
+    )
+    .subscribe((status) => {
+      console.log("settlement_tbl listener status:", status);
+    });
+
+  return settlementsChannel;
+};
+
 module.exports = {
   startListeners,
   listenToRequests,
   listenToComplaints,
   listenToAnnouncements,
   listenToMediations,
+  listenToSettlements,
 };

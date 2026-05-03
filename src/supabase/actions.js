@@ -528,9 +528,146 @@ const announcement_actions = async (payload) => {
   }
 };
 
+const settlement_actions = async (payload, eventType) => {
+  try {
+    const settlementRow = payload?.new || payload?.old;
+    const partiesUids = Array.isArray(settlementRow?.parties_uid)
+      ? settlementRow.parties_uid
+      : [];
+    const complaintId = settlementRow?.complaint_id;
+
+    if (partiesUids.length === 0) {
+      console.log("settlement_actions: no parties_uid found");
+      return;
+    }
+
+    if (!complaintId) {
+      console.log("settlement_actions: missing complaint_id");
+      return;
+    }
+
+    const { data: complaint, error: complaintError } = await supabase
+      .from("complaint_tbl")
+      .select("id, complaint_type")
+      .eq("id", complaintId)
+      .limit(1)
+      .maybeSingle();
+
+    if (complaintError) {
+      console.log("settlement_actions complaint query error:", complaintError);
+      return;
+    }
+
+    if (!complaint) {
+      console.log(
+        "settlement_actions: complaint not found for id:",
+        complaintId,
+      );
+      return;
+    }
+
+    const { data: residents, error: residentsError } = await supabase
+      .from("residents_summary")
+      .select("auth_uid, resident_fullname, contact_number")
+      .in("auth_uid", partiesUids);
+
+    if (residentsError) {
+      console.log("settlement_actions residents query error:", residentsError);
+      return;
+    }
+
+    const residentMap = new Map();
+    for (const resident of residents || []) {
+      residentMap.set(String(resident?.auth_uid || ""), resident);
+    }
+
+    const settlementType = toTitle(settlementRow?.type || "N/A");
+    const settlementStatus = String(settlementRow?.status || "").toLowerCase();
+    const complaintType = toTitle(complaint?.complaint_type || "N/A");
+    const startLine = formatDateTimeLong(settlementRow?.session_start)
+      ? `Session Start: ${formatDateTimeLong(settlementRow?.session_start)}`
+      : null;
+    const endLine = formatDateTimeLong(settlementRow?.session_end)
+      ? `Session End: ${formatDateTimeLong(settlementRow?.session_end)}`
+      : null;
+
+    for (const uid of partiesUids) {
+      const resident = residentMap.get(String(uid));
+      const contactNumber = String(resident?.contact_number || "").trim();
+
+      if (!contactNumber) {
+        console.log(
+          "settlement_actions: skipped party with missing contact_number:",
+          uid,
+        );
+        continue;
+      }
+
+      const fullName = resident?.resident_fullname || "Resident";
+      let messageParts = [];
+
+      if (settlementStatus === "scheduled") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `A ${settlementType} session has been scheduled for your complaint (#${complaintId}).`,
+          `Complaint Type: ${complaintType}`,
+          startLine,
+          endLine,
+          "Please make sure to attend the session. Check your BarangayEase account for more details.",
+        ];
+      } else if (settlementStatus === "rescheduled") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `Your ${settlementType} session for complaint #${complaintId} has been rescheduled.`,
+          `Complaint Type: ${complaintType}`,
+          `New Schedule:`,
+          startLine,
+          endLine,
+          "Please take note of the new schedule. Check your BarangayEase account for more details.",
+        ];
+      } else if (settlementStatus === "resolved") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `Good news! Your ${settlementType} session for complaint #${complaintId} has been resolved.`,
+          `Complaint Type: ${complaintType}`,
+          "Thank you for your cooperation. You may check your BarangayEase account for the resolution details.",
+        ];
+      } else if (settlementStatus === "unresolved") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `Your ${settlementType} session for complaint #${complaintId} is currently unresolved.`,
+          `Complaint Type: ${complaintType}`,
+          "Please wait for further updates from the barangay office. Check your BarangayEase account for more information.",
+        ];
+      } else if (settlementStatus === "rejected") {
+        messageParts = [
+          `Hi ${fullName},`,
+          `Your ${settlementType} session for complaint #${complaintId} has been rejected.`,
+          `Complaint Type: ${complaintType}`,
+          "Please visit the barangay office for more details and next steps.",
+        ];
+      } else {
+        messageParts = [
+          `Hi ${fullName},`,
+          `There's an update on your ${settlementType} session for complaint #${complaintId}.`,
+          `Complaint Type: ${complaintType}`,
+          `Status: ${toTitle(settlementStatus)}`,
+          "Please check your BarangayEase account for more details.",
+        ];
+      }
+
+      const message = messageParts.filter(Boolean).join("\n");
+      sendMessage(contactNumber, message);
+    }
+  } catch (error) {
+    console.log("settlement_actions error:", error);
+  }
+};
+
 module.exports = {
   request_actions,
   complaint_actions,
   announcement_actions,
   mediation_actions,
+  settlement_actions,
 };
