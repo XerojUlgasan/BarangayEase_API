@@ -32,7 +32,7 @@ const listenToRequests = () => {
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "request_tbl" },
       (payload) => {
-        console.log("[request_tbl][INSERT]", payload);
+        // console.log("[request_tbl][INSERT]", payload);
         request_actions(payload);
       },
     )
@@ -40,7 +40,7 @@ const listenToRequests = () => {
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "request_tbl" },
       (payload) => {
-        console.log("[request_tbl][UPDATE]", payload);
+        // console.log("[request_tbl][UPDATE]", payload);
         request_actions(payload);
       },
     )
@@ -60,7 +60,7 @@ const listenToComplaints = () => {
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "complaint_tbl" },
       (payload) => {
-        console.log("[complaint_tbl][UPDATE]", payload);
+        // console.log("[complaint_tbl][UPDATE]", payload);
         complaint_actions(payload);
       },
     )
@@ -80,7 +80,7 @@ const listenToAnnouncements = () => {
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "announcement_tbl" },
       (payload) => {
-        console.log("[announcement_tbl][INSERT]", payload);
+        // console.log("[announcement_tbl][INSERT]", payload);
         announcement_actions(payload);
       },
     )
@@ -108,7 +108,7 @@ const listenToMediations = () => {
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "mediations_tbl" },
       (payload) => {
-        console.log("[mediations_tbl][INSERT]", payload);
+        // console.log("[mediations_tbl][INSERT]", payload);
         mediation_actions(payload, "INSERT");
       },
     )
@@ -116,7 +116,7 @@ const listenToMediations = () => {
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "mediations_tbl" },
       (payload) => {
-        console.log("[mediations_tbl][UPDATE]", payload);
+        // console.log("[mediations_tbl][UPDATE]", payload);
         mediation_actions(payload, "UPDATE");
       },
     )
@@ -136,7 +136,7 @@ const listenToSettlements = () => {
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "settlement_tbl" },
       (payload) => {
-        console.log("[settlement_tbl][INSERT]", payload);
+        // console.log("[settlement_tbl][INSERT]", payload);
         settlement_actions(payload, "INSERT");
       },
     )
@@ -144,7 +144,7 @@ const listenToSettlements = () => {
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "settlement_tbl" },
       (payload) => {
-        console.log("[settlement_tbl][UPDATE]", payload);
+        // console.log("[settlement_tbl][UPDATE]", payload);
         settlement_actions(payload, "UPDATE");
       },
     )

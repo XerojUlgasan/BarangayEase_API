@@ -51,6 +51,22 @@ const formatDateTimeLong = (value) => {
   });
 };
 
+const statusGuidance = {
+  pending:
+    "Your request has been received and is waiting to be reviewed. Please wait for further updates.",
+  "for compliance":
+    "Additional documents are required. Please submit the necessary documents to the web application.",
+  approved:
+    "Your submitted documents have been verified. Your request is now being prepared for processing.",
+  processing:
+    "Your requested document is currently being processed. Please wait for further updates.",
+  "ready for pickup":
+    "Your document is ready! Please visit the barangay office to claim it.",
+  completed: "Your document has been successfully claimed. Thank you!",
+  rejected:
+    "Your request was not approved. Please visit the barangay office for more details.",
+};
+
 const request_actions = async (payload) => {
   console.log("STARTING REQUEST ACTIONS");
   try {
