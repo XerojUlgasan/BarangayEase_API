@@ -31,8 +31,8 @@ const tokenGetter = async () => {
   const { data, error } = await supabase.auth.signInWithPassword({
     // email: "xeroj1342@gmail.com", // Superadmin
     // password: "password123",
-    email: "pondpalqcu@gmail.com", // Resident
-    password: "RES-2026-0000001",
+    email: "ilyneulgasan29@gmail.com", // Resident
+    password: "password1234",
   });
   console.log(data);
   console.log(data.session.access_token);
