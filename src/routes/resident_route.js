@@ -22,10 +22,36 @@ resident_route.post("/checkIdentity", async (req, res) => {
     });
   }
 
+  // Get household id from household_no (house_id)
+  const { data: householdData, error: householdError } = await supabase
+    .schema("barangaylink")
+    .from("households")
+    .select("id")
+    .eq("household_no", house_id)
+    .limit(1)
+    .maybeSingle();
+
+  if (householdError) {
+    return res.status(500).json({
+      result: false,
+      message: "Failed to verify household",
+      debug: householdError.message,
+    });
+  }
+
+  if (!householdData) {
+    return res.status(200).json({
+      result: false,
+      message: "Household not found",
+    });
+  }
+
+  // Query residents table with household id
   let query = supabase
-    .from("residents_tbl_view")
-    .select("id, is_activated")
-    .eq("household_id", house_id)
+    .schema("barangaylink")
+    .from("residents")
+    .select("id, status")
+    .eq("household_id", householdData.id)
     .ilike("first_name", fname)
     .ilike("last_name", lname)
     .eq("date_of_birth", bdate);
@@ -51,10 +77,10 @@ resident_route.post("/checkIdentity", async (req, res) => {
     });
   }
 
-  if (data.is_activated === true) {
+  if (data.status !== "active") {
     return res.status(200).json({
       result: false,
-      message: "Resident already registered",
+      message: "Resident account is not active",
     });
   }
 
@@ -96,10 +122,36 @@ resident_route.post("/activateAccount", async (req, res) => {
   }
   //#endregion
 
+  // Get household id from household_no (house_id)
+  const { data: householdData, error: householdError } = await supabase
+    .schema("barangaylink")
+    .from("households")
+    .select("id")
+    .eq("household_no", house_id)
+    .limit(1)
+    .maybeSingle();
+
+  if (householdError) {
+    return res.status(500).json({
+      result: false,
+      message: "Failed to verify household",
+      debug: householdError.message,
+    });
+  }
+
+  if (!householdData) {
+    return res.status(200).json({
+      result: false,
+      message: "Household not found",
+    });
+  }
+
+  // Query residents table with household id
   let query = supabase
-    .from("residents_tbl_view")
-    .select("id, is_activated, email, resident_no, first_name, last_name")
-    .eq("household_id", house_id)
+    .schema("barangaylink")
+    .from("residents")
+    .select("id, status, email, resident_no, first_name, last_name")
+    .eq("household_id", householdData.id)
     .ilike("first_name", fname)
     .ilike("last_name", lname)
     .eq("date_of_birth", bdate);
@@ -126,10 +178,10 @@ resident_route.post("/activateAccount", async (req, res) => {
       message: "No resident record found",
     });
   }
-  if (userData.is_activated === true) {
+  if (userData.status !== "active") {
     return res.status(200).json({
       result: false,
-      message: "Resident already registered",
+      message: "Resident account is not active",
     });
   }
   if (userData?.email && email != userData.email) {
